@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit2, Trash2, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit2, Trash2, Image as ImageIcon, Eye, EyeOff, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface HomeCard {
@@ -63,9 +63,7 @@ export function AdminHomeCards() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Home Cards</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Edit the image cards shown on the student app home screen.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Edit the image cards on student app home screen.</p>
         </div>
         <Button onClick={() => { setEditingCard(null); setEditOpen(true); }}>
           <Plus className="mr-1 h-4 w-4" /> Add Card
@@ -89,8 +87,7 @@ export function AdminHomeCards() {
                 ) : (
                   sectionCards.map((card) => (
                     <div key={card.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      {/* Image preview */}
-                      <div className="h-16 w-16 rounded-md border bg-muted overflow-hidden shrink-0">
+                      <div className="h-16 w-16 rounded-md border bg-muted overflow-hidden shrink-0 relative">
                         {card.imageUrl ? (
                           <img src={card.imageUrl} alt={card.title} className="h-full w-full object-cover" />
                         ) : (
@@ -99,7 +96,6 @@ export function AdminHomeCards() {
                           </div>
                         )}
                       </div>
-                      {/* Card info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-medium truncate">{card.title}</div>
@@ -108,33 +104,15 @@ export function AdminHomeCards() {
                         <div className="text-xs text-muted-foreground truncate">
                           Key: {card.key} • Route: {card.route || "—"} • Order: {card.sortOrder}
                         </div>
-                        {card.imageUrl && (
-                          <div className="text-xs text-muted-foreground truncate">Image: {card.imageUrl}</div>
-                        )}
                       </div>
-                      {/* Actions */}
                       <div className="flex gap-1 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => toggleActive(card)}
-                          title={card.isActive ? "Hide" : "Show"}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => toggleActive(card)}>
                           {card.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setEditingCard(card); setEditOpen(true); }}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => { setEditingCard(card); setEditOpen(true); }}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-rose-500"
-                          onClick={() => deleteCard(card)}
-                        >
+                        <Button size="sm" variant="ghost" className="text-rose-500" onClick={() => deleteCard(card)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -147,24 +125,13 @@ export function AdminHomeCards() {
         })
       )}
 
-      {/* Edit/Create dialog */}
-      <CardEditDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        card={editingCard}
-        onSaved={load}
-      />
+      <CardEditDialog open={editOpen} onOpenChange={setEditOpen} card={editingCard} onSaved={load} />
     </div>
   );
 }
 
-function CardEditDialog({
-  open, onOpenChange, card, onSaved,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  card: HomeCard | null;
-  onSaved: () => void;
+function CardEditDialog({ open, onOpenChange, card, onSaved }: {
+  open: boolean; onOpenChange: (v: boolean) => void; card: HomeCard | null; onSaved: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("test");
@@ -174,26 +141,46 @@ function CardEditDialog({
   const [key, setKey] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (card) {
-      setTitle(card.title);
-      setSection(card.section);
-      setImageUrl(card.imageUrl || "");
-      setSortOrder(card.sortOrder);
-      setRoute(card.route || "tests");
-      setKey(card.key);
-      setIsActive(card.isActive);
+      setTitle(card.title); setSection(card.section); setImageUrl(card.imageUrl || "");
+      setSortOrder(card.sortOrder); setRoute(card.route || "tests"); setKey(card.key);
+      setIsActive(card.isActive); setImagePreview(card.imageUrl || "");
     } else {
-      setTitle("");
-      setSection("test");
-      setImageUrl("");
-      setSortOrder(0);
-      setRoute("tests");
-      setKey("");
-      setIsActive(true);
+      setTitle(""); setSection("test"); setImageUrl(""); setSortOrder(0);
+      setRoute("tests"); setKey(""); setIsActive(true); setImagePreview("");
     }
   }, [card, open]);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "home-cards");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.ok) {
+        const fullUrl = data.url.startsWith("http") ? data.url : `https://my-project-five-sepia.vercel.app${data.url}`;
+        setImageUrl(fullUrl);
+        setImagePreview(fullUrl);
+        toast.success("Image uploaded to R2");
+      } else {
+        toast.error(data.error || "Upload failed");
+      }
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   async function save() {
     if (!title.trim()) { toast.error("Title required"); return; }
@@ -201,7 +188,6 @@ function CardEditDialog({
     setBusy(true);
     try {
       if (card) {
-        // Update
         const res = await fetch(`/api/admin/home-cards/${card.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -210,7 +196,6 @@ function CardEditDialog({
         if (!res.ok) { const d = await res.json(); toast.error(d.error || "Failed"); return; }
         toast.success("Card updated");
       } else {
-        // Create
         const res = await fetch("/api/admin/home-cards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -228,23 +213,16 @@ function CardEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{card ? "Edit Card" : "New Home Card"}</DialogTitle>
-          <DialogDescription>
-            Edit the image card shown on the student app home screen.
-          </DialogDescription>
+          <DialogDescription>Edit the image card shown on the student app home screen.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           {!card && (
             <div>
               <Label>Key (unique identifier)</Label>
-              <Input
-                value={key}
-                onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-                placeholder="ubt_test"
-                disabled={!!card}
-              />
+              <Input value={key} onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))} placeholder="ubt_test" disabled={!!card} />
             </div>
           )}
           <div>
@@ -278,11 +256,28 @@ function CardEditDialog({
               </Select>
             </div>
           </div>
-          <div>
-            <Label>Image URL</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-            {imageUrl && <img src={imageUrl} alt="Preview" className="mt-2 max-h-32 rounded border" />}
+          
+          {/* Image upload section */}
+          <div className="space-y-2">
+            <Label>Card Image</Label>
+            {imagePreview && (
+              <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <Button size="sm" variant="destructive" className="absolute top-2 right-2 h-7 w-7 p-0" onClick={() => { setImageUrl(""); setImagePreview(""); }}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                <Upload className="mr-1 h-3 w-3" />
+                {uploading ? "Uploading..." : "Upload Image to R2"}
+              </Button>
+            </div>
+            <Input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setImagePreview(e.target.value); }} placeholder="Or paste image URL" />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Sort Order</Label>

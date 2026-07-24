@@ -1,10 +1,3 @@
-/**
- * GET /api/admin/home-cards — list all home cards (including inactive)
- * POST /api/admin/home-cards — create a new home card
- *   Body: { key, title, section, imageUrl, sortOrder, isActive, route }
- * PUT  /api/admin/home-cards — update a card (pass id in body)
- * DELETE via POST with action: "delete"
- */
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
@@ -23,13 +16,13 @@ export async function GET() {
 }
 
 const createSchema = z.object({
-  key: z.string().trim().min(2).max(50).regex(/^[a-z0-9_-]+$/),
-  title: z.string().trim().min(2).max(100),
+  key: z.string().min(2).max(50).regex(/^[a-z0-9_-]+$/),
+  title: z.string().min(2).max(100),
   section: z.enum(["test", "resources", "premium"]).default("test"),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  sortOrder: z.number().int().min(0).max(100).default(0),
+  imageUrl: z.string().optional().or(z.literal("")),
+  sortOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
-  route: z.string().trim().max(50).optional().or(z.literal("")),
+  route: z.string().optional().or(z.literal("")),
 });
 
 export async function POST(req: NextRequest) {
