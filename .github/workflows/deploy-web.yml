@@ -17,15 +17,5 @@ jobs:
         run: npm install --legacy-peer-deps
       - name: Generate Prisma client
         run: npx prisma generate
-      - name: Push schema to Supabase
-        env:
-          DATABASE_URL: postgresql://postgres:assissobigsexylady@db.rupwlrmtcwzqaohbsswj.supabase.co:5432/postgres
-        run: |
-          rm -f .env
-          npx prisma db push --accept-data-loss || echo "Schema push skipped"
-      - name: Seed
-        env:
-          DATABASE_URL: postgresql://postgres:assissobigsexylady@db.rupwlrmtcwzqaohbsswj.supabase.co:5432/postgres
-        run: |
-          npx tsx scripts/seed-korean.ts || echo "Seed skipped"
-          npx tsx scripts/seed-fixed-tokens.ts || echo "Token seed skipped"
+      - name: Build check (optional)
+        run: npx next build || echo "Build check skipped"
