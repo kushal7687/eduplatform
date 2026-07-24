@@ -60,3 +60,4 @@ skills/
 live-class.log
 mini-services/live-class-service/node_modules
 upload/
+.vercel-env.txt
